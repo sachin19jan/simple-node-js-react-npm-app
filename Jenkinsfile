@@ -1,35 +1,29 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'node:lts-buster-slim'
+            args '-p 3000:3000'
+        }
+    }
     environment {
         CI = 'true'
     }
     stages {
-        stage('Setup') {
-            steps {
-                sh '''
-                    podman pull node:lts-buster-slim
-                    podman run -d --name nodejs-builder -p 3000:3000 -v $WORKSPACE:/app -w /app node:lts-buster-slim tail -f /dev/null
-                '''
-            }
-        }
         stage('Build') {
             steps {
-                sh 'podman exec nodejs-builder npm install'
+                sh 'npm install'
             }
         }
         stage('Test') {
             steps {
-                sh 'podman exec nodejs-builder npm test'
+                sh './jenkins/scripts/test.sh'
             }
         }
         stage('Deliver') {
             steps {
-                sh 'podman exec nodejs-builder npm run build'
+                sh './jenkins/scripts/deliver.sh'
                 input message: 'Finished using the web site? (Click "Proceed" to continue)'
-                sh '''
-                    podman stop nodejs-builder
-                    podman rm nodejs-builder
-                '''
+                sh './jenkins/scripts/kill.sh'
             }
         }
     }
